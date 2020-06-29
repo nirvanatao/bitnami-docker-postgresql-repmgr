@@ -349,7 +349,6 @@ repmgr_create_repmgr_user() {
     local postgres_password="$POSTGRESQL_PASSWORD"
     local -r escaped_password="${REPMGR_PASSWORD//\'/\'\'}"
     repmgr_info "Creating repmgr user: $REPMGR_USERNAME"
-
     [[ "$POSTGRESQL_USERNAME" != "postgres" ]] && [[ -n "$POSTGRESQL_POSTGRES_PASSWORD" ]] && postgres_password="$POSTGRESQL_POSTGRES_PASSWORD"
     # The repmgr user is created as superuser for simplicity (ref: https://repmgr.org/docs/4.3/quickstart-repmgr-user-database.html)
     echo "CREATE ROLE \"${REPMGR_USERNAME}\" WITH LOGIN CREATEDB PASSWORD '${escaped_password}';" | postgresql_execute "" "postgres" "$postgres_password"
@@ -670,6 +669,14 @@ repmgr_initialize() {
             repmgr_register_primary
             # Allow running custom initialization scripts
             postgresql_custom_init_scripts
+        elif is_boolean_yes "$POSTGRESQL_FIRST_UPGRADE"; then
+            postgresql_start_bg
+            repmgr_create_repmgr_user
+            repmgr_create_repmgr_db
+            # Restart PostgreSQL
+            postgresql_stop
+            postgresql_start_bg
+            repmgr_register_primary
         elif is_boolean_yes "$REPMGR_UPGRADE_EXTENSION"; then
             # Upgrade repmgr extension
             postgresql_start_bg
